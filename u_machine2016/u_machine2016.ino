@@ -83,7 +83,7 @@ void loop() {
           // LED DISPLAY?
           digitalWrite(motor_direction, HIGH);
           digitalWrite(motor_brake, LOW);
-          analogWrite(motor_pwn, 150);
+          analogWrite(motor_pwm, 150);
           delay(200 * count);
           digitalWrite(motor_brake, HIGH);
           move_back = false;
@@ -232,7 +232,7 @@ void captain_crazy() {
     delay(15);
   }
   delay(500);
-  for (pos_door = 5; por_door <= 60; pos_door += 3) {
+  for (pos_door = 5; pos_door <= 60; pos_door += 3) {
     door_servo.write(pos_door);
     delay(15);
   }
