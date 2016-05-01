@@ -9,7 +9,10 @@ int pos_arm, pos_door, rand_num;
 int switch_state = LOW;
 int pir_state = LOW;
 int val = 0;
-bool booltest;
+int count = 0;
+bool mode_input = false;
+bool move_back = false;
+bool door_open = false;
 
 // PINS
 int switch_pin = 2;
@@ -51,23 +54,70 @@ void setup() {
 
 void loop() {
   /*ALL THE WHILE CALL FUNCTION FOR LED DISPLAY, A GREETING AND MODE SWITCHES
-  IF STATEMENT HERE FOR WAITING FOR MODE TYPE FROM SOUND SENSOR AND PARSE THROUGH uSPEECH {DEFAULT TO SWITCH MODE}*/
+    IF STATEMENT HERE FOR WAITING FOR MODE TYPE FROM SOUND SENSOR AND PARSE THROUGH uSPEECH {DEFAULT TO SWITCH MODE}*/
   //LED CODE HERE?
   char p = voice.getPhoneme();
   if (p != ' ') {
     if (p == 'o') {
-      booltest = true;
+      mode_input = true;
     }
     else {
-      booltest = false;
+      mode_input = false;
     }
   }
   else {
-    if (booltest) {
-      rand_num = random(4);
+    /*STATEMENT FOR MICROPHONE USE FOR MODE TYPE USING MOTION SENSOR IN MOVING AWAY FROM USER
+      WRITE CODE HERE FOR MOVING AWAY AND STUFF, WRITE CODE FOR MOVING THE BOX BACK INTO PLACE AFTERWARDS*/
+    if (mode_input) {
+      char q = voice.getPhoneme();
+      if (p != ' ') {
+        if (p == 'v') {
+          move_back = true;
+        }
+        else {
+          move_back = false;
+        }
+      }
+      else {
+        if (move_back) {
+          // LED DISPLAY?
+          digitalWrite(motor_direction, HIGH);
+          digitalWrite(motor_brake, LOW);
+          analogWrite(motor_pwn, 150);
+          delay(200 * count);
+          digitalWrite(motor_brake, HIGH);
+          move_back = false;
+          count = 0;
+        }
+        else {
+          // LED DISPLAY?
+          if (!door_open) {
+            open_door_slight();
+            delay(15);
+          }
+          val = digitalRead(pir_pin);
+          if (val == HIGH) {
+            if (door_open) {
+              close_door_slight();
+              delay(15);
+            }
+            digitalWrite(motor_direction, LOW);
+            digitalWrite(motor_brake, LOW);
+            analogWrite(motor_pwm, 150);
+            count++;
+            delay(200);
+            digitalWrite(motor_brake, HIGH);
+          }
+          else {
+            digitalWrite(motor_brake, HIGH);
+          }
+        }
+      }
+    }
+    else {
+      rand_num = random(3);
       int switch_state = digitalRead(switch_pin);
       if (switch_state == LOW) {
-        normal_behavior();
         if (rand_num == 0) {
           Serial.println("here0");
           normal_behavior();
@@ -76,49 +126,24 @@ void loop() {
           Serial.println("here1");
           sneak();
         }
-        else if (rand_num == 2) {
-          captain_slow();
-        }
-        else if (rand_num == 3) {
-          jezza();
-        }
         else {
-          // Do nothing
-        }  
-      }
-    }
-    /*ELSE STATEMENT FOR MICROPHONE USE FOR MODE TYPE USING MOTION SENSOR IN MOVING AWAY FROM USER
-    WRITE CODE HERE FOR MOVING AWAY AND STUFF, WRITE CODE FOR MOVING THE BOX BACK INTO PLACE AFTERWARDS*/
-    else {
-      open_door_slight();
-      val = digitalRead(pir_pin);
-      if (val == HIGH) {
-        digitalWrite(motor_direction, LOW);
-        digitalWrite(motor_brake, LOW);
-        analogWrite(motor_pwm, 123);
-        delay(1000);
-        digitalWrite(motor_brake, HIGH);
-        if (pir_state == LOW) {
-          pir_state = HIGH;
-        }
-      }
-      else {
-        digitalWrite(motor_brake, HIGH);
-        if (pir_state == HIGH) {
-          pir_state = LOW;
+          Serial.println("here2");
+          captain_crazy();
         }
       }
     }
   }
 }
+// 20 - 95 ARM ; 5 - 70 DOOR
 void normal_behavior() {
+  // LED DISPLAY?
   // Opening Door
-  for (pos_door = 5; pos_door < 70; pos_door += 1) {
+  for (pos_door = 5; pos_door <= 70; pos_door += 1) {
     door_servo.write(pos_door);
     delay(15);
   }
   // Opening Arm
-  for (pos_arm = 20; pos_arm < 95; pos_arm += 1) {
+  for (pos_arm = 20; pos_arm <= 95; pos_arm += 1) {
     arm_servo.write(pos_arm);
     delay(15);
   }
@@ -133,27 +158,27 @@ void normal_behavior() {
     delay(15);
   }
 }
+// 20 - 95 ARM ; 5 - 70 DOOR
 void sneak() {
+  // LED DISPLAY?
   // Opening Door
-  //70 full door open
-  for (pos_door = 5; pos_door < 50; pos_door += 1) {
+  for (pos_door = 5; pos_door <= 50; pos_door += 1) {
     door_servo.write(pos_door);
     delay(30);
   }
   delay(2000);
   // Opening Arm
-  // 95 full arm
-  for (pos_arm = 20; pos_arm < 40; pos_arm += 1) {
+  for (pos_arm = 20; pos_arm <= 40; pos_arm += 1) {
     arm_servo.write(pos_arm);
     delay(30);
   }
   delay(500);
-  for (pos_door = 50; pos_door < 70; pos_door += 4) {
+  for (pos_door = 50; pos_door <= 70; pos_door += 4) {
     door_servo.write(pos_door);
     delay(15);
   }
   delay(100);
-  for (pos_arm = 40; pos_arm < 70; pos_arm += 4) {
+  for (pos_arm = 40; pos_arm <= 70; pos_arm += 4) {
     arm_servo.write(pos_arm);
     delay(15);
   }
@@ -163,7 +188,7 @@ void sneak() {
     delay(15);
   }
   delay(100);
-  for (pos_arm = 50; pos_arm < 70; pos_arm += 4) {
+  for (pos_arm = 50; pos_arm <= 70; pos_arm += 4) {
     arm_servo.write(pos_arm);
     delay(15);
   }
@@ -173,7 +198,7 @@ void sneak() {
     delay(15);
   }
   delay(100);
-  for (pos_arm = 50; pos_arm < 95; pos_arm += 4) {
+  for (pos_arm = 50; pos_arm <= 95; pos_arm += 4) {
     arm_servo.write(pos_arm);
     delay(15);
   }
@@ -186,13 +211,67 @@ void sneak() {
     delay(15);
   }
 }
-void captain_slow() {
+// 20 - 95 ARM ; 5 - 70 DOOR
+void captain_crazy() {
+  // LED DISPLAY?
+  //Crazy Door Portion
+  for (pos_door = 5; pos_door <= 60; pos_door += 3) {
+    door_servo.write(pos_door);
+    delay(15);
+  }
+  for (pos_door = 60; pos_door >= 5; pos_door -= 5) {
+    door_servo.write(pos_door);
+    delay(15);
+  }
+  for (pos_door = 5; pos_door <= 50; pos_door += 3) {
+    door_servo.write(pos_door);
+    delay(15);
+  }
+  for (pos_door = 50; pos_door >= 5; pos_door -= 15) {
+    door_servo.write(pos_door);
+    delay(15);
+  }
+  delay(500);
+  for (pos_door = 5; por_door <= 60; pos_door += 3) {
+    door_servo.write(pos_door);
+    delay(15);
+  }
+  delay(500);
+  for (pos_door = 60; pos_door >= 5; pos_door -= 5) {
+    door_servo.write(pos_door);
+    delay(15);
+  }
   
-}
-void jezza() {
-  
+  //"Functional" Part
+  for (pos_door = 5; pos_door <= 70; pos_door += 8) {
+    door_servo.write(pos_door);
+    delay(15);
+  }
+  for (pos_arm = 20; pos_arm <= 95; pos_arm += 3) {
+    arm_servo.write(pos_arm);
+    delay(15);
+  }
+  for (pos_arm = 95; pos_arm >= 20; pos_arm -= 3) {
+    arm_servo.write(pos_arm);
+    delay(15);
+  }
+  for (pos_door = 70; pos_door >= 5; pos_door -= 15) {
+    door_servo.write(pos_door);
+    delay(15);
+  }
 }
 void open_door_slight() {
-  
+  for (pos_door = 5; pos_door <= 50; pos_door += 3) {
+    door_servo.write(pos_door);
+    delay(15);
+  }
+  bool door_open = true;
+}
+void close_door_slight() {
+  for (pos_door = 50; pos_door >= 5; pos_door += 3) {
+    door_servo.write(pos_door);
+    delay(15);
+  }
+  bool door_open = false;
 }
 
