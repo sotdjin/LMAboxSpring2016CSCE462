@@ -114,19 +114,15 @@ int isr_flag = 0;
 int pos_arm, pos_door;
 long rand_num;
 int switch_state;
-int pir_state = LOW;
 int count = 0;
 int val = 0;
 bool mode_input = false;
-bool move_back = false;
-bool door_open = false;
 bool intro_done = false;
 
 // PINS
 int switch_pin = 11;
 int arm_pin = 8;
 int door_pin = 7;
-int pir_pin = 4;
 int data = 6;    // DIN pin of MAX7219 module
 int load = 13;    // CS pin of MAX7219 module
 int clock = 10;  // CLK pin of MAX7219 module*/
@@ -156,15 +152,14 @@ void setup() {
   arm_servo.write(20);
   door_servo.attach(door_pin);
   door_servo.write(5);
-  pinMode(pir_pin, INPUT);
+  pinMode(APDS9960_INT, INPUT);
   pinMode(motor_direction, OUTPUT);
   pinMode(motor_brake, OUTPUT);
-  pinMode(APDS9960_INT, INPUT);
   
   // Random and Serial start
   Serial.begin(9600);
   randomSeed(analogRead(1));
-  delay(10);
+  delay(50);
   Serial.println(F("--------------------------------"));
   Serial.println(F("SparkFun APDS-9960 - Gesture"));
   Serial.println(F("--------------------------------"));
@@ -196,7 +191,6 @@ void loop() {
   if (!intro_done) {
     introduction();
   }
-  
   char p = voice.getPhoneme();
   Serial.println(p);
   if (p != ' ') {
@@ -239,7 +233,7 @@ void loop() {
 }
 
 void introduction() {
-  char string1[] = "LMA BOX   ";  // Scrolling Text
+  char string1[] = "LMA BOX    ";  // Scrolling Text
   delay(100);
   m.shiftLeft(false, true);
   printStringWithShift(string1, 100);
@@ -284,11 +278,11 @@ void move_away_mode() {
           analogWrite(motor_pwm, 200);
           count++;
           delay(1500);
-          //digitalWrite(motor_brake, HIGH);
+          digitalWrite(motor_brake, HIGH);
           val = 0;
         }
         else {
-          //digitalWrite(motor_brake, HIGH);
+          digitalWrite(motor_brake, HIGH);
         }
       }
       else if (!return_main && f_or_b == 1) {
