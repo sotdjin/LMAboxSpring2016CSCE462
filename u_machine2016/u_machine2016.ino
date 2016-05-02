@@ -30,17 +30,17 @@ int pir_pin = 4;
 int motor_direction = 12;
 int motor_brake = 9;
 int motor_pwm = 3;
-signal voice(A1);
+signal voice(A0);
 
 void setup() {
   // Voice Coeff and Calibrate;
   voice.f_enabled = true;
-  voice.minVolume = 340;
-  voice.fconstant = 400;
-  voice.econstant = 1;
-  voice.aconstant = 2;
-  voice.vconstant = 3;
-  voice.shconstant = 4;
+  voice.minVolume = 9700;
+  voice.fconstant = 300;
+  voice.econstant = 3;
+  voice.aconstant = 4;
+  voice.vconstant = 2;
+  voice.shconstant = 7;
   voice.calibrate();
 
   // Pin Setup
@@ -56,7 +56,7 @@ void setup() {
   pinMode(led_pin, OUTPUT);
 
   // Random and Serial start
-  randomSeed(analogRead(0));
+  randomSeed(analogRead(1));
   Serial.begin(9600);
   delay(10);
   Serial.println(F("--------------------------------"));
@@ -86,8 +86,9 @@ void setup() {
 void loop() {
   //LED CODE HERE?
   char p = voice.getPhoneme();
+  Serial.println(p);
   if (p != ' ') {
-    if (p == 'o') {
+    if (p == 'e') {
       mode_input = true;
     }
     else {
@@ -95,63 +96,14 @@ void loop() {
     }
   }
   else {
-    if (mode_input) {
-      char q = voice.getPhoneme();
-      if (p != ' ') {
-        if (p == 'v') {
-          move_back = true;
-        }
-        else {
-          move_back = false;
-        }
-      }
-      else {
-        if (move_back) {
-          // LED DISPLAY?
-          digitalWrite(motor_direction, HIGH);
-          digitalWrite(motor_brake, LOW);
-          analogWrite(motor_pwm, 150);
-          delay(200 * count);
-          digitalWrite(motor_brake, HIGH);
-          move_back = false;
-          count = 0;
-        }
-        else {
-          // LED DISPLAY?
-          if (!door_open) {
-            open_door_slight();
-            delay(15);
-          }
-          if (isr_flag == 1) {
-            detachInterrupt(0);
-            handleGesture();
-            isr_flag = 0;
-            attachInterrupt(0, interruptRoutine, FALLING);
-          }
-          if (val == 1) {
-            if (door_open) {
-              close_door_slight();
-              delay(15);
-            }
-            digitalWrite(motor_direction, LOW);
-            digitalWrite(motor_brake, LOW);
-            analogWrite(motor_pwm, 150);
-            count++;
-            delay(200);
-            digitalWrite(motor_brake, HIGH);
-            val = 0;
-          }
-          else {
-            digitalWrite(motor_brake, HIGH);
-          }
-        }
-      }
+    if (mode_input == true) {
+      move_away_mode();
     }
     else {
+      Serial.println("Switch_Mode");
       rand_num = random(3);
-      Serial.println(rand_num);
       int switch_state = digitalRead(switch_pin);
-      if (switch_state == LOW) {
+      if (switch_state == HIGH) {
         if (rand_num == 0) {
           Serial.println("here0");
           normal_behavior();
@@ -169,6 +121,67 @@ void loop() {
   }
 }
 
+void move_away_mode() {
+  Serial.println("move_away_mode()");
+  bool return_main = false;
+  int f_or_b;
+  while (!return_main) {
+    char g = voice.getPhoneme();
+    if (g != ' ') {
+      if (g == 's') {
+        return_main = true;
+      }
+      else if (g == 'f') {
+        f_or_b = 1;
+        return_main = false;
+      }
+      else {
+        f_or_b = 0;
+        return_main = false;
+      }
+    }
+    else {
+      if (!return_main && f_or_b == 0) {
+        Serial.println("Here_move_away");
+        // LED DISPLAY?
+        if (isr_flag == 1) {
+          detachInterrupt(0);
+          handleGesture();
+          isr_flag = 0;
+          attachInterrupt(0, interruptRoutine, FALLING);
+        }
+        Serial.println(val);
+        if (val == 1) {
+          digitalWrite(motor_direction, LOW);
+          digitalWrite(motor_brake, LOW);
+          analogWrite(motor_pwm, 150);
+          count++;
+          delay(200);
+          digitalWrite(motor_brake, HIGH);
+          val = 0;
+        }
+        else {
+          digitalWrite(motor_brake, HIGH);
+        }
+      }
+      else if (!return_main && f_or_b == 1) {
+        move_back_mode();
+      }
+    }
+  }
+}
+
+void move_back_mode() {
+  Serial.println("Here_move_back");
+  // LED DISPLAY?
+  digitalWrite(motor_direction, HIGH);
+  digitalWrite(motor_brake, LOW);
+  analogWrite(motor_pwm, 150);
+  delay(200 * count);
+  digitalWrite(motor_brake, HIGH);
+  move_back = false;
+  count = 0;
+}
 void interruptRoutine() {
   isr_flag = 1;
 }
@@ -177,26 +190,26 @@ void handleGesture() {
     switch (apds.readGesture()) {
       case DIR_UP:
         Serial.println("UP");
-        val = 0;
+        val = 1;
         break;
       case DIR_DOWN:
         Serial.println("DOWN");
-        val = 0;
+        val = 1;
         break;
       case DIR_LEFT:
         Serial.println("LEFT");
-        val = 0;
+        val = 1;
         break;
       case DIR_RIGHT:
         Serial.println("RIGHT");
-        val = 0;
+        val = 1;
         break;
       case DIR_NEAR:
         Serial.println("NEAR");
-        val = 0;
+        val = 1;
       case DIR_FAR:
         Serial.println("FAR");
-        val = 0;
+        val = 1;
         break;
       default:
         Serial.println("NONE");
@@ -331,18 +344,3 @@ void captain_crazy() {
     delay(15);
   }
 }
-void open_door_slight() {
-  for (pos_door = 5; pos_door < 50; pos_door += 3) {
-    door_servo.write(pos_door);
-    delay(15);
-  }
-  bool door_open = true;
-}
-void close_door_slight() {
-  for (pos_door = 50; pos_door > 5; pos_door += 3) {
-    door_servo.write(pos_door);
-    delay(15);
-  }
-  bool door_open = false;
-}
-
