@@ -15,8 +15,8 @@ int pos_arm, pos_door;
 long rand_num;
 int switch_state;
 int pir_state = LOW;
-int val = 0;
 int count = 0;
+int val = 0;
 bool mode_input = false;
 bool move_back = false;
 bool door_open = false;
@@ -85,7 +85,7 @@ void setup() {
 
 void loop() {
   //LED CODE HERE?
-  /*char p = voice.getPhoneme();
+  char p = voice.getPhoneme();
   if (p != ' ') {
     if (p == 'o') {
       mode_input = true;
@@ -122,8 +122,13 @@ void loop() {
             open_door_slight();
             delay(15);
           }
-          val = digitalRead(pir_pin);
-          if (val == HIGH) {
+          if (isr_flag == 1) {
+            detachInterrupt(0);
+            handleGesture();
+            isr_flag = 0;
+            attachInterrupt(0, interruptRoutine, FALLING);
+          }
+          if (val == 1) {
             if (door_open) {
               close_door_slight();
               delay(15);
@@ -134,6 +139,7 @@ void loop() {
             count++;
             delay(200);
             digitalWrite(motor_brake, HIGH);
+            val = 0;
           }
           else {
             digitalWrite(motor_brake, HIGH);
@@ -160,12 +166,6 @@ void loop() {
         }
       }
     }
-  }*/
-  if (isr_flag == 1) {
-    detachInterrupt(0);
-    handleGesture();
-    isr_flag = 0;
-    attachInterrupt(0, interruptRoutine, FALLING);
   }
 }
 
@@ -177,23 +177,31 @@ void handleGesture() {
     switch (apds.readGesture()) {
       case DIR_UP:
         Serial.println("UP");
+        val = 0;
         break;
       case DIR_DOWN:
         Serial.println("DOWN");
+        val = 0;
         break;
       case DIR_LEFT:
         Serial.println("LEFT");
+        val = 0;
         break;
       case DIR_RIGHT:
         Serial.println("RIGHT");
+        val = 0;
         break;
       case DIR_NEAR:
         Serial.println("NEAR");
+        val = 0;
       case DIR_FAR:
         Serial.println("FAR");
+        val = 0;
         break;
       default:
         Serial.println("NONE");
+        val = 0;
+        break;
     }
   }
 }
