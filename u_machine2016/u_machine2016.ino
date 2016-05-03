@@ -2,7 +2,6 @@
 #include <Wire.h>
 #include <SparkFun_APDS9960.h>
 #include <AFMotor.h>
-#include <uspeech.h>
 #include <Servo.h>
 #include <avr/pgmspace.h>
 
@@ -113,11 +112,11 @@ SparkFun_APDS9960 apds = SparkFun_APDS9960();
 int isr_flag = 0;
 int pos_arm, pos_door;
 long rand_num;
-int switch_state;
 int count = 0;
 int val = 0;
 bool mode_input = false;
-bool intro_done = false;
+bool intro_sign = false;
+char c_ret_inner = 'q';
 
 // PINS
 int switch_pin = 11;
@@ -129,23 +128,12 @@ int clock = 10;  // CLK pin of MAX7219 module*/
 int motor_direction = 12;
 int motor_pwm = 3;
 int motor_brake = 9;
-signal voice(A0);
 
 int maxInUse = 2;  //how many MAX7219 are connected
 MaxMatrix m(data, load, clock, maxInUse); // define Library
 byte buffer[10];
 
 void setup() {
-  // Voice Coeff and Calibrate;
-  voice.f_enabled = true;
-  voice.minVolume = 9700;
-  voice.fconstant = 300;
-  voice.econstant = 3;
-  voice.aconstant = 4;
-  voice.vconstant = 2;
-  voice.shconstant = 7;
-  voice.calibrate();
-
   // Pin Setup
   pinMode(switch_pin, INPUT);
   arm_servo.attach(arm_pin);
@@ -158,7 +146,7 @@ void setup() {
   
   // Random and Serial start
   Serial.begin(9600);
-  randomSeed(analogRead(1));
+  randomSeed(analogRead(0));
   delay(50);
   Serial.println(F("--------------------------------"));
   Serial.println(F("SparkFun APDS-9960 - Gesture"));
@@ -182,166 +170,115 @@ void setup() {
   else {
     Serial.println(F("Something went wrong during gesture sensor init!"));
   }
-
   m.init();
   m.setIntensity(5);
 }
 
 void loop() {
-  if (!intro_done) {
-    introduction();
+  if (intro_sign == false) {
+    Serial.println("LMA BOX    ");
+    char string3[] = "LMA BOX    ";  // Scrolling Text
+    m.shiftLeft(false, true);
+    printStringWithShift(string3, 75);
+    intro_sign = true;
   }
-  char p = voice.getPhoneme();
-  Serial.println(p);
-  if (p != ' ') {
-    if (p == 'e') {
-      mode_input = true;
-    }
-    else {
-      mode_input = false;
-    }
+  delay(1050);
+  char gest;
+  if (isr_flag == 1) {
+    detachInterrupt(0);
+    gest = handleGesture();
+    isr_flag = 0;
+    attachInterrupt(0, interruptRoutine, FALLING);
+  }
+  Serial.println(gest);
+  if (gest == 'u') {
+    mode_input = true;
   }
   else {
-    if (mode_input == true) {
-      move_away_mode();
-    }
-    else {
-      Serial.println("Switch_Mode");
-      char string2[] = "Switch Mode   ";  // Scrolling Text
-      delay(100);
-      m.shiftLeft(false, true);
-      printStringWithShift(string2, 100);
-      
-      rand_num = random(3);
-      int switch_state = digitalRead(switch_pin);
-      if (switch_state == HIGH) {
-        if (rand_num == 0) {
-          Serial.println("here0");
-          normal_behavior();
-        }
-        else if (rand_num == 1) {
-          Serial.println("here1");
-          sneak();
-        }
-        else {
-          Serial.println("here2");
-          captain_crazy();
-        }
+    mode_input = false;
+  }
+  
+  if (mode_input) {
+    move_mode();
+  }
+  else {
+    Serial.println("Choosing random!");
+    rand_num = random(3);
+    int switch_state = digitalRead(switch_pin);
+    if (switch_state == HIGH) {
+      if (rand_num == 0) {
+        Serial.println("here0");
+        normal_behavior();
+      }
+      else if (rand_num == 1) {
+        Serial.println("here1");
+        sneak();
+      }
+      else {
+        Serial.println("here2");
+        captain_crazy();
       }
     }
   }
 }
-
-void introduction() {
-  char string1[] = "LMA BOX    ";  // Scrolling Text
-  delay(100);
+void move_mode() {
+  Serial.println("MOVE MODE");
+  char string3[] = " Run Away Mode ";  // Scrolling Text
   m.shiftLeft(false, true);
-  printStringWithShift(string1, 100);
-  intro_done = true;
-}
-void move_away_mode() {
-  Serial.println("move_away_mode()");
-  char string3[] = "Move Away   ";  // Scrolling Text
-  delay(100);
-  m.shiftLeft(false, true);
-  printStringWithShift(string3, 100);
-  
+  printStringWithShift(string3, 75);
   bool return_main = false;
-  int f_or_b;
-  while (!return_main) {
-    char g = voice.getPhoneme();
-    if (g != ' ') {
-      if (g == 's') {
-        return_main = true;
+  while (return_main == false) {
+    // MOVES AWAY UNTIL SWITCH IS HIT, THEN RETURNS
+    c_ret_inner = 'q';
+    int switch_state = digitalRead(switch_pin);
+    if (isr_flag == 1) {
+      detachInterrupt(0);
+      handleGesture_2();
+      isr_flag = 0;
+      attachInterrupt(0, interruptRoutine, FALLING);
+    }
+    Serial.println(c_ret_inner);
+    if (c_ret_inner != 'q' && switch_state == LOW) {
+      digitalWrite(motor_direction, LOW);
+      digitalWrite(motor_brake, LOW);
+      analogWrite(motor_pwm, 150);
+      count++;
+      delay(600);
+      digitalWrite(motor_brake, HIGH);
+    }
+    else if (switch_state == HIGH) {
+      move_back_mode();
+      rand_num = random(3);
+      if (rand_num == 0) {
+        normal_behavior();
       }
-      else if (g == 'f') {
-        f_or_b = 1;
-        return_main = false;
+      else if (rand_num == 1) {
+        sneak();
       }
       else {
-        f_or_b = 0;
-        return_main = false;
+        captain_crazy();
       }
+      return_main = true;
     }
     else {
-      if (!return_main && f_or_b == 0) {
-        if (isr_flag == 1) {
-          detachInterrupt(0);
-          handleGesture();
-          isr_flag = 0;
-          attachInterrupt(0, interruptRoutine, FALLING);
-        }
-        Serial.println(val);
-        if (val == 1) {
-          digitalWrite(motor_direction, LOW);
-          digitalWrite(motor_brake, LOW);
-          analogWrite(motor_pwm, 200);
-          count++;
-          delay(1500);
-          digitalWrite(motor_brake, HIGH);
-          val = 0;
-        }
-        else {
-          digitalWrite(motor_brake, HIGH);
-        }
-      }
-      else if (!return_main && f_or_b == 1) {
-        move_back_mode();
-      }
+      digitalWrite(motor_brake, HIGH);
     }
   }
 }
 void move_back_mode() {
-  Serial.println("move_back_mode()");
-  char string4[] = "Move Back   ";  // Scrolling Text
-  delay(100);
+  Serial.println("GOING BACK");
+  char string4[] = " Going Back! ";  // Scrolling Text
   m.shiftLeft(false, true);
-  printStringWithShift(string4, 100);
+  printStringWithShift(string4, 75);
   
   digitalWrite(motor_direction, HIGH);
   digitalWrite(motor_brake, LOW);
   analogWrite(motor_pwm, 150);
-  delay(1500 * count);
+  delay(700 * count);
   digitalWrite(motor_brake, HIGH);
   count = 0;
 }
 
-void interruptRoutine() {
-  isr_flag = 1;
-}
-void handleGesture() {
-  if (apds.isGestureAvailable()) {
-    switch (apds.readGesture()) {
-      case DIR_UP:
-        Serial.println("UP");
-        val = 1;
-        break;
-      case DIR_DOWN:
-        Serial.println("DOWN");
-        val = 1;
-        break;
-      case DIR_LEFT:
-        Serial.println("LEFT");
-        val = 1;
-        break;
-      case DIR_RIGHT:
-        Serial.println("RIGHT");
-        val = 1;
-        break;
-      case DIR_NEAR:
-        Serial.println("NEAR");
-        val = 1;
-      case DIR_FAR:
-        Serial.println("FAR");
-        val = 1;
-        break;
-      default:
-        Serial.println("NONE");
-        val = 0;
-        break;
-    }
-  }
-}
 // 20 - 95 ARM ; 5 - 70 DOOR
 void normal_behavior() {
   // LED DISPLAY?
@@ -351,12 +288,12 @@ void normal_behavior() {
     delay(15);
   }
   // Opening Arm
-  for (pos_arm = 20; pos_arm < 95; pos_arm += 1) {
+  for (pos_arm = 20; pos_arm < 100; pos_arm += 3) {
     arm_servo.write(pos_arm);
     delay(15);
   }
   // Closing Arm
-  for (pos_arm = 95; pos_arm > 20; pos_arm -= 1) {
+  for (pos_arm = 100; pos_arm > 20; pos_arm -= 3) {
     arm_servo.write(pos_arm);
     delay(15);
   }
@@ -406,11 +343,11 @@ void sneak() {
     delay(15);
   }
   delay(100);
-  for (pos_arm = 50; pos_arm < 95; pos_arm += 4) {
+  for (pos_arm = 50; pos_arm < 100; pos_arm += 4) {
     arm_servo.write(pos_arm);
     delay(15);
   }
-  for (pos_arm = 95; pos_arm > 20; pos_arm -= 4) {
+  for (pos_arm = 100; pos_arm > 20; pos_arm -= 4) {
     arm_servo.write(pos_arm);
     delay(15);
   }
@@ -466,6 +403,65 @@ void captain_crazy() {
   for (pos_door = 70; pos_door > 5; pos_door -= 15) {
     door_servo.write(pos_door);
     delay(15);
+  }
+}
+void interruptRoutine() {
+  isr_flag = 1;
+}
+char handleGesture() {
+  char c_ret;
+  if (apds.isGestureAvailable()) {
+    switch (apds.readGesture()) {
+      case DIR_UP:
+        c_ret = 'u';
+        break;
+      case DIR_DOWN:
+        c_ret = 'd';
+        break;
+      case DIR_LEFT:
+        c_ret = 'l';
+        break;
+      case DIR_RIGHT:
+        c_ret = 'r';
+        break;
+      case DIR_NEAR:
+        c_ret = 'n';
+        break;
+      case DIR_FAR:
+        c_ret = 'f';
+        break;
+      default:
+        c_ret = 'q';
+        break;
+    }
+  }
+  return c_ret;
+}
+char handleGesture_2() {
+  if (apds.isGestureAvailable()) {
+    switch (apds.readGesture()) {
+      case DIR_UP:
+        c_ret_inner = 'u';
+        break;
+      case DIR_DOWN:
+        c_ret_inner = 'd';
+        break;
+      case DIR_LEFT:
+        c_ret_inner = 'l';
+        break;
+      case DIR_RIGHT:
+        c_ret_inner = 'r';
+        break;
+      case DIR_NEAR:
+        c_ret_inner = 'n';
+        break;
+      case DIR_FAR:
+        c_ret_inner = 'f';
+        break;
+      default:
+        c_ret_inner = 'q';
+        break;
+    }
   }
 }
 void printCharWithShift(char c, int shift_speed) {
